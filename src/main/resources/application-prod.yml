@@ -1,0 +1,9 @@
+spring:
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+
+logging:
+  level:
+    root: WARN
+    com.eventhub.config: INFO

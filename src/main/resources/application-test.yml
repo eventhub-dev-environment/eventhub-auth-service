@@ -1,0 +1,8 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://localhost:27017/eventhub_config_test_db
+
+logging:
+  level:
+    root: INFO
