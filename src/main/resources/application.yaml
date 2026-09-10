@@ -1,0 +1,12 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: auth-service
+  profiles:
+    active: dev
+
+jwt:
+  secret: 404E635266556A586E3272357538782F413F4428472B4B6250655368566D5971 # Clave secreta en Base64/Hex (min 256 bits)
+  expiration-ms: 86400000 # 24 Horas
