@@ -8,8 +8,11 @@ spring:
     active: dev
 
 jwt:
-  secret: 404E635266556A586E3272357538782F413F4428472B4B6250655368566D5971 # Clave secreta en Base64/Hex (min 256 bits)
+  secret: ${JWT_SECRET}
   expiration-ms: 86400000 # 24 Horas
+
+gateway:
+  internal-secret: ${GATEWAY_INTERNAL_SECRET}
 
 management:
   endpoints:
@@ -23,7 +26,7 @@ management:
       type: "b3,w3c"
     export:
       zipkin:
-        endpoint: ${MANAGEMENT_TRACING_EXPORT_ZIPKIN_ENDPOINT:http://zipkin:9411/api/v2/spans}
+        endpoint: ${MANAGEMENT_TRACING_EXPORT_ZIPKIN_ENDPOINT}
 
 logging:
   pattern:

@@ -10,11 +10,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Objects;
 
 @Component
 public class GatewayAccessFilter extends OncePerRequestFilter {
 
-    @Value("${gateway.internal-secret:EventHubGatewaySecret2026SecureKey!}")
+    @Value("${gateway.internal-secret}")
     private String expectedSecret;
 
     @Override
@@ -31,7 +32,8 @@ public class GatewayAccessFilter extends OncePerRequestFilter {
 
         String secretHeader = request.getHeader("X-Gateway-Secret");
 
-        if (secretHeader == null || !secretHeader.equals(expectedSecret)) {
+        // Validacion segura contra NullPointerException
+        if (expectedSecret == null || !Objects.equals(secretHeader, expectedSecret)) {
             response.setStatus(HttpStatus.FORBIDDEN.value());
             response.getWriter().write("Acceso denegado: Las peticiones deben pasar obligatoriamente por el API Gateway");
             return;

@@ -1,3 +1,3 @@
 spring:
   mongodb:
-    uri: ${SPRING_MONGODB_URI:mongodb://eventhub:eventhub_password@mongodb:27017/eventhub_auth_db?authSource=admin}
+    uri: ${SPRING_DATA_MONGODB_URI}
