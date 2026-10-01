@@ -25,12 +25,14 @@ dependencies {
 
 	// Observabilidad y Trazabilidad (Starter oficial de Spring Boot 4)
 	implementation 'org.springframework.boot:spring-boot-starter-zipkin'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+
+	// Relacional PostgreSQL + Spring Data JPA
+	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+	runtimeOnly 'org.postgresql:postgresql'
 
 	// Security
 	implementation 'org.springframework.boot:spring-boot-starter-security'
-
-	// Mongo Data
-	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 
 	// JJWT (JSON Web Token)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
