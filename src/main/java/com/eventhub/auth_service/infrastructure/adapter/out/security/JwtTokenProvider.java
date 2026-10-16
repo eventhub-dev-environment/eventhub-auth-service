@@ -28,6 +28,7 @@ public class JwtTokenProvider {
 
     public String generateToken(User user) {
         Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", user.getId());
         claims.put("tenantId", user.getTenantId());
         claims.put("roles", user.getRoles().stream().map(Enum::name).toList());
 
