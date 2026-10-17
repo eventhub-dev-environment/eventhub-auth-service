@@ -35,3 +35,15 @@ Valid tenant roles are `TENANT_ADMIN` and `EVENT_ORGANIZER`. The user must log i
 Remove all tenant roles from a user with `DELETE /api/v1/auth/admin/users/{userId}/tenant-roles/{tenantId}`. The API Gateway checks protected access tokens against the user's current enabled status, global roles, and tenant memberships through the internal `POST /internal/v1/authz/validate` endpoint. A role removal or account disablement therefore invalidates existing tokens immediately; a role grant requires a new login to obtain updated claims.
 
 The internal validation endpoint requires the existing `X-Gateway-Secret` header enforced by `GatewayAccessFilter`. It returns `204` for a current token and `401` for a missing, invalid, expired, or stale token. Keep Auth Service reachable only through trusted internal networking and configure the gateway and Auth Service with the same `gateway.internal-secret`.
+
+## Database migrations
+
+Auth Service uses Flyway migrations in `src/main/resources/db/migration`; Hibernate validates the schema and does not update it. V1 creates the `users` table, and V2 creates the global-role and tenant-membership tables. An empty database is migrated automatically on startup.
+
+Before upgrading an existing database, take a backup and inspect its schema using the authorized database operator workflow:
+
+- If only `users` exists, verify its ID, email, password, role, and enabled columns, primary key, and unique email constraint match V1. Baseline that database at Flyway version 1 so Flyway applies V2.
+- If `users`, `user_global_roles`, and `user_tenant_roles` already exist from Hibernate schema updates, verify all columns and primary/foreign-key constraints match V1 and V2, then baseline at version 2. Do not run V2 against tables that already exist.
+- Do not enable automatic baselining or select a baseline version from the application. An unexpected schema must stop deployment for review.
+
+The legacy `users.role` value is retained and is not copied into the new role tables: older tenant roles did not identify a tenant and cannot safely be converted into tenant memberships. Existing accounts without a row in `user_global_roles` are treated as `CUSTOMER` by Auth Service. After migration, provision the first `PLATFORM_ADMIN` using the controlled SQL operation above, then use the admin API to grant explicit tenant roles. Review any legacy privileged accounts and reassign their memberships to the correct tenant before relying on tenant-scoped access.
