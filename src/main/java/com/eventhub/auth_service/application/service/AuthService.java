@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -58,7 +59,8 @@ public class AuthService {
     }
 
     public void assignTenantRoles(String userId, String tenantId, Set<TenantRole> roles) {
-        if (tenantId == null || tenantId.isBlank() || roles == null || roles.isEmpty()) {
+        if (!isValidTenantId(tenantId) || roles == null || roles.isEmpty()
+                || roles.stream().anyMatch(Objects::isNull)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El tenant y al menos un rol son obligatorios");
         }
 
@@ -76,6 +78,9 @@ public class AuthService {
     }
 
     public void removeTenantRoles(String userId, String tenantId) {
+        if (!isValidTenantId(tenantId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El tenantId no es válido");
+        }
         User user = userRepositoryPort.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Usuario no encontrado"));
         Set<TenantRoleAssignment> tenantRoles = user.getTenantRoles() == null
@@ -95,5 +100,9 @@ public class AuthService {
                 .roles(user.getRoles())
                 .tenantRoles(user.getTenantRoles())
                 .build();
+    }
+
+    private boolean isValidTenantId(String tenantId) {
+        return tenantId != null && tenantId.matches("^[a-z0-9-]{3,50}$");
     }
 }

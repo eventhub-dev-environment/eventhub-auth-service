@@ -14,6 +14,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Set;
 import java.util.Optional;
@@ -107,5 +109,16 @@ class AuthServiceTest {
                         .tenantId("tenant-b")
                         .role(TenantRole.TENANT_ADMIN)
                         .build());
+    }
+
+    @Test
+    void rejectsMalformedTenantIdsBeforeSavingMemberships() {
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> authService.assignTenantRoles(
+                        "user-123", "Tenant A", Set.of(TenantRole.EVENT_ORGANIZER)))
+                .isInstanceOf(ResponseStatusException.class)
+                .extracting(exception -> ((ResponseStatusException) exception).getStatusCode())
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+
+        verify(userRepositoryPort, never()).findById(any());
     }
 }
