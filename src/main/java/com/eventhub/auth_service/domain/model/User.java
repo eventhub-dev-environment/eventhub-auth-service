@@ -17,7 +17,7 @@ public class User {
     private String password;
     private String firstName;
     private String lastName;
-    private String tenantId;
     private Set<Role> roles;
+    private Set<TenantRoleAssignment> tenantRoles;
     private boolean enabled;
 }
