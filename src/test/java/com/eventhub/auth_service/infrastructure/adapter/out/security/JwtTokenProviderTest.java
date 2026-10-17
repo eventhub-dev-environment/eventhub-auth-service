@@ -43,6 +43,7 @@ class JwtTokenProviderTest {
                         .tenantId("tenant-456")
                         .role(TenantRole.TENANT_ADMIN)
                         .build()))
+                .enabled(true)
                 .build();
 
         String token = tokenProvider.generateToken(user);
@@ -60,5 +61,51 @@ class JwtTokenProviderTest {
                 .containsExactly(
                         Map.of("tenantId", "tenant-123", "roles", List.of("EVENT_ORGANIZER", "TENANT_ADMIN")),
                         Map.of("tenantId", "tenant-456", "roles", List.of("TENANT_ADMIN")));
+        assertThat(tokenProvider.matchesCurrentAuthorization(claims, user)).isTrue();
+    }
+
+    @Test
+    void rejectsTokenWithTenantRolesThatWereRevoked() {
+        String secret = Base64.getEncoder().encodeToString(
+                "test-secret-with-at-least-32-bytes".getBytes(StandardCharsets.UTF_8));
+        JwtTokenProvider tokenProvider = new JwtTokenProvider();
+        ReflectionTestUtils.setField(tokenProvider, "secret", secret);
+        ReflectionTestUtils.setField(tokenProvider, "expirationMs", 60_000L);
+
+        User user = User.builder()
+                .id("user-123")
+                .email("user@example.com")
+                .roles(Set.of(Role.CUSTOMER))
+                .tenantRoles(Set.of(TenantRoleAssignment.builder()
+                        .tenantId("tenant-123")
+                        .role(TenantRole.EVENT_ORGANIZER)
+                        .build()))
+                .enabled(true)
+                .build();
+        Claims claims = tokenProvider.parseClaims(tokenProvider.generateToken(user));
+        user.setTenantRoles(Set.of());
+
+        assertThat(tokenProvider.matchesCurrentAuthorization(claims, user)).isFalse();
+    }
+
+    @Test
+    void rejectsTokenWhenUserHasBeenDisabled() {
+        String secret = Base64.getEncoder().encodeToString(
+                "test-secret-with-at-least-32-bytes".getBytes(StandardCharsets.UTF_8));
+        JwtTokenProvider tokenProvider = new JwtTokenProvider();
+        ReflectionTestUtils.setField(tokenProvider, "secret", secret);
+        ReflectionTestUtils.setField(tokenProvider, "expirationMs", 60_000L);
+
+        User user = User.builder()
+                .id("user-123")
+                .email("user@example.com")
+                .roles(Set.of(Role.CUSTOMER))
+                .tenantRoles(Set.of())
+                .enabled(true)
+                .build();
+        Claims claims = tokenProvider.parseClaims(tokenProvider.generateToken(user));
+        user.setEnabled(false);
+
+        assertThat(tokenProvider.matchesCurrentAuthorization(claims, user)).isFalse();
     }
 }

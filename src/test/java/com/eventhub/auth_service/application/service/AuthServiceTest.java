@@ -7,6 +7,7 @@ import com.eventhub.auth_service.domain.model.TenantRoleAssignment;
 import com.eventhub.auth_service.domain.model.User;
 import com.eventhub.auth_service.domain.port.out.UserRepositoryPort;
 import com.eventhub.auth_service.infrastructure.adapter.out.security.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -109,6 +110,26 @@ class AuthServiceTest {
                         .tenantId("tenant-b")
                         .role(TenantRole.TENANT_ADMIN)
                         .build());
+    }
+
+    @Test
+    void checksThePersistedUserBeforeAcceptingAnAccessToken() {
+        Claims claims = mock(Claims.class);
+        User user = User.builder()
+                .id("user-123")
+                .email("organizer@example.com")
+                .roles(Set.of(Role.CUSTOMER))
+                .tenantRoles(Set.of())
+                .enabled(true)
+                .build();
+        when(jwtTokenProvider.parseClaims("signed-token")).thenReturn(claims);
+        when(claims.get("userId", String.class)).thenReturn("user-123");
+        when(userRepositoryPort.findById("user-123")).thenReturn(Optional.of(user));
+        when(jwtTokenProvider.matchesCurrentAuthorization(claims, user)).thenReturn(true);
+
+        assertThat(authService.isAccessTokenCurrent("signed-token")).isTrue();
+        verify(userRepositoryPort).findById("user-123");
+        verify(jwtTokenProvider).matchesCurrentAuthorization(claims, user);
     }
 
     @Test

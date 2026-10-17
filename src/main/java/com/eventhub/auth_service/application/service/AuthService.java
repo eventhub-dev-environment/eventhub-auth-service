@@ -10,6 +10,8 @@ import com.eventhub.auth_service.domain.exception.InvalidCredentialsException;
 import com.eventhub.auth_service.domain.model.User;
 import com.eventhub.auth_service.domain.port.out.UserRepositoryPort;
 import com.eventhub.auth_service.infrastructure.adapter.out.security.JwtTokenProvider;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -56,6 +58,33 @@ public class AuthService {
         }
 
         return toAuthResponse(user);
+    }
+
+    public boolean isAccessTokenCurrent(String token) {
+        Claims claims;
+        try {
+            claims = jwtTokenProvider.parseClaims(token);
+        } catch (JwtException exception) {
+            return false;
+        }
+        String userId;
+        try {
+            userId = claims.get("userId", String.class);
+        } catch (JwtException exception) {
+            return false;
+        }
+        if (userId == null || userId.isBlank()) {
+            return false;
+        }
+        return userRepositoryPort.findById(userId)
+                .map(user -> {
+                    try {
+                        return jwtTokenProvider.matchesCurrentAuthorization(claims, user);
+                    } catch (JwtException exception) {
+                        return false;
+                    }
+                })
+                .orElse(false);
     }
 
     public void assignTenantRoles(String userId, String tenantId, Set<TenantRole> roles) {

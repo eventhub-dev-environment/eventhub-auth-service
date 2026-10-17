@@ -32,4 +32,6 @@ A `PLATFORM_ADMIN` can grant tenant-scoped roles to an existing user through `PU
 
 Valid tenant roles are `TENANT_ADMIN` and `EVENT_ORGANIZER`. The user must log in again after the grant to receive updated membership claims.
 
-Remove all tenant roles from a user with `DELETE /api/v1/auth/admin/users/{userId}/tenant-roles/{tenantId}`. Existing JWTs remain valid until expiration (currently 24 hours), so a removed role can remain effective in already-issued tokens until then.
+Remove all tenant roles from a user with `DELETE /api/v1/auth/admin/users/{userId}/tenant-roles/{tenantId}`. The API Gateway checks protected access tokens against the user's current enabled status, global roles, and tenant memberships through the internal `POST /internal/v1/authz/validate` endpoint. A role removal or account disablement therefore invalidates existing tokens immediately; a role grant requires a new login to obtain updated claims.
+
+The internal validation endpoint requires the existing `X-Gateway-Secret` header enforced by `GatewayAccessFilter`. It returns `204` for a current token and `401` for a missing, invalid, expired, or stale token. Keep Auth Service reachable only through trusted internal networking and configure the gateway and Auth Service with the same `gateway.internal-secret`.
