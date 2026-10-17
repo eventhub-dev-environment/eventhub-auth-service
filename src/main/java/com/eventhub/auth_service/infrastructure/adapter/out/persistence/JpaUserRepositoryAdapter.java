@@ -1,12 +1,13 @@
 package com.eventhub.auth_service.infrastructure.adapter.out.persistence;
 
 import com.eventhub.auth_service.domain.model.Role;
+import com.eventhub.auth_service.domain.model.TenantRoleAssignment;
 import com.eventhub.auth_service.domain.model.User;
 import com.eventhub.auth_service.domain.port.out.UserRepositoryPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.Collections;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -30,36 +31,57 @@ public class JpaUserRepositoryAdapter implements UserRepositoryPort {
     }
 
     @Override
+    public Optional<User> findById(String id) {
+        return jpaRepository.findById(id).map(this::toDomain);
+    }
+
+    @Override
     public boolean existsByEmail(String email) {
         return jpaRepository.existsByEmail(email);
     }
 
     private UserEntity toEntity(User user) {
-        String roleStr = "ROLE_USER";
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
-            // Si user.getRoles() retorna una colección de Role o un solo Role
-            Object firstRole = user.getRoles().iterator().next();
-            roleStr = firstRole.toString(); // Usa .name() o .toString() según si Role es Enum u Objeto
-        }
+        Set<Role> roles = user.getRoles() == null || user.getRoles().isEmpty()
+                ? Set.of(Role.CUSTOMER)
+                : user.getRoles();
 
         return UserEntity.builder()
                 .id(user.getId())
                 .email(user.getEmail())
                 .password(user.getPassword())
-                .role(roleStr)
+                .role(roles.iterator().next().name())
                 .enabled(user.isEnabled())
+                .globalRoles(new HashSet<>(roles))
+                .tenantRoles(user.getTenantRoles() == null
+                        ? new HashSet<>()
+                        : user.getTenantRoles().stream()
+                                .map(tenantRole -> new TenantRoleEntity(
+                                        tenantRole.getTenantId(),
+                                        tenantRole.getRole()))
+                                .collect(Collectors.toCollection(HashSet::new)))
                 .build();
     }
 
     private User toDomain(UserEntity entity) {
-        // Convertimos la cadena almacenada en BD al tipo de Dominio Role
-        Role role = Role.valueOf(entity.getRole());
+        Set<Role> roles = entity.getGlobalRoles() == null || entity.getGlobalRoles().isEmpty()
+                ? Set.of(Role.CUSTOMER)
+                : new HashSet<>(entity.getGlobalRoles());
+
+        Set<TenantRoleAssignment> tenantRoles = entity.getTenantRoles() == null
+                ? Set.of()
+                : entity.getTenantRoles().stream()
+                        .map(tenantRole -> TenantRoleAssignment.builder()
+                                .tenantId(tenantRole.getTenantId())
+                                .role(tenantRole.getRole())
+                                .build())
+                        .collect(Collectors.toSet());
 
         return User.builder()
                 .id(entity.getId())
                 .email(entity.getEmail())
                 .password(entity.getPassword())
-                .roles(Collections.singleton(role)) // O Set.of(role) / Role según el campo exacto en tu User.java
+                .roles(roles)
+                .tenantRoles(tenantRoles)
                 .enabled(entity.isEnabled())
                 .build();
     }

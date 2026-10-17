@@ -1,0 +1,35 @@
+# EventHub Auth Service
+
+## Tenant roles
+
+Public registration creates a `CUSTOMER` account only. Tenant IDs and roles submitted to the public registration endpoint are not used to grant access. A user can hold multiple tenant roles; the JWT contains global `roles` and a `tenantMemberships` claim. For tenant-scoped staff operations, send `X-Tenant-ID`; the API Gateway checks the membership and forwards the verified tenant and its roles to internal services.
+
+After the Auth Service has run with the membership schema, provision the first `PLATFORM_ADMIN` through a controlled database operation. First register the intended account through the public endpoint, then run this statement using the production database's authorized SQL session, replacing the email:
+
+```sql
+INSERT INTO user_global_roles (user_id, global_role)
+SELECT id, 'PLATFORM_ADMIN'
+FROM users
+WHERE email = 'platform-admin@example.com'
+  AND NOT EXISTS (
+      SELECT 1
+      FROM user_global_roles existing
+      WHERE existing.user_id = users.id
+        AND existing.global_role = 'PLATFORM_ADMIN'
+  );
+```
+
+Verify the inserted role before allowing the account to administer tenants. The user must log in again to receive a token with the new role. Keep this as a one-time operation; do not expose public role assignment or leave bootstrap credentials in application configuration.
+
+A `PLATFORM_ADMIN` can grant tenant-scoped roles to an existing user through `PUT /api/v1/auth/admin/users/{userId}/tenant-roles` with a body such as:
+
+```json
+{
+  "tenantId": "carrera-tulua-2026",
+  "roles": ["EVENT_ORGANIZER"]
+}
+```
+
+Valid tenant roles are `TENANT_ADMIN` and `EVENT_ORGANIZER`. The user must log in again after the grant to receive updated membership claims.
+
+Remove all tenant roles from a user with `DELETE /api/v1/auth/admin/users/{userId}/tenant-roles/{tenantId}`. Existing JWTs remain valid until expiration (currently 24 hours), so a removed role can remain effective in already-issued tokens until then.

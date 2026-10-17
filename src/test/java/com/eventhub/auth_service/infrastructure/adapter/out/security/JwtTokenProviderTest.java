@@ -1,6 +1,8 @@
 package com.eventhub.auth_service.infrastructure.adapter.out.security;
 
 import com.eventhub.auth_service.domain.model.Role;
+import com.eventhub.auth_service.domain.model.TenantRole;
+import com.eventhub.auth_service.domain.model.TenantRoleAssignment;
 import com.eventhub.auth_service.domain.model.User;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -11,6 +13,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,8 +32,17 @@ class JwtTokenProviderTest {
         User user = User.builder()
                 .id("user-123")
                 .email("user@example.com")
-                .tenantId("tenant-123")
                 .roles(Set.of(Role.CUSTOMER))
+                .tenantRoles(Set.of(TenantRoleAssignment.builder()
+                        .tenantId("tenant-123")
+                        .role(TenantRole.EVENT_ORGANIZER)
+                        .build(), TenantRoleAssignment.builder()
+                        .tenantId("tenant-123")
+                        .role(TenantRole.TENANT_ADMIN)
+                        .build(), TenantRoleAssignment.builder()
+                        .tenantId("tenant-456")
+                        .role(TenantRole.TENANT_ADMIN)
+                        .build()))
                 .build();
 
         String token = tokenProvider.generateToken(user);
@@ -40,5 +53,12 @@ class JwtTokenProviderTest {
                 .getPayload();
 
         assertThat(claims.get("userId", String.class)).isEqualTo("user-123");
+        assertThat(claims.get("tenantId")).isNull();
+        assertThat((Object) claims.get("roles")).asList().containsExactly("CUSTOMER");
+        assertThat((Object) claims.get("tenantMemberships"))
+                .asList()
+                .containsExactly(
+                        Map.of("tenantId", "tenant-123", "roles", List.of("EVENT_ORGANIZER", "TENANT_ADMIN")),
+                        Map.of("tenantId", "tenant-456", "roles", List.of("TENANT_ADMIN")));
     }
 }
